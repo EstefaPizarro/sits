@@ -51,7 +51,8 @@
 #' @return
 #' A list of lists: The error_matrix, the class_areas, the unbiased
 #' estimated areas, the standard error areas, confidence interval 95% areas,
-#' and the accuracy (user, producer, and overall), or NULL if the data is empty.
+#' the coefficient of variation per class (as a proportion), and the accuracy
+#' (user, producer, and overall), or NULL if the data is empty.
 #' The result is assigned to class "sits_accuracy" and can be visualized
 #' directly on the screen.
 #
@@ -470,16 +471,22 @@ print.sits_accuracy <- function(x, ..., digits = NULL) {
 print.sits_area_accuracy <- function(x, ..., digits = 2L) {
     # round the data to the significant digits
     overall <- round(x[["accuracy"]][["overall"]], digits = digits)
+    se_overall <- round(x[["accuracy"]][["stderr_overall"]], digits = digits)
 
     cat("Area Weighted Statistics\n")
-    cat(paste0("Overall Accuracy = ", overall, "\n"))
+    cat(paste0(
+        "Overall Accuracy = ", overall,
+        " (SE = ", se_overall, ")\n"
+    ))
 
     acc_user <- round(x[["accuracy"]][["user"]], digits = digits)
     acc_prod <- round(x[["accuracy"]][["producer"]], digits = digits)
+    se_user  <- round(x[["accuracy"]][["stderr_user"]], digits = digits)
+    se_prod  <- round(x[["accuracy"]][["stderr_producer"]], digits = digits)
 
     # print accuracy values
-    tb <- t(dplyr::bind_rows(acc_user, acc_prod))
-    colnames(tb) <- c("User", "Producer")
+    tb <- t(dplyr::bind_rows(acc_user, acc_prod, se_user, se_prod))
+    colnames(tb) <- c("User", "Producer", "SE User", "SE Producer")
 
     cat("\nArea-Weighted Users and Producers Accuracy\n")
 
@@ -488,15 +495,164 @@ print.sits_area_accuracy <- function(x, ..., digits = 2L) {
     area_pix <- round(x[["area_pixels"]], digits = digits)
     area_adj <- round(x[["error_ajusted_area"]], digits = digits)
     conf_int <- round(x[["conf_interval"]], digits = digits)
+    coef_var <- round(x[["coef_variation"]] * 100L, digits = digits)
 
-    tb1 <- t(dplyr::bind_rows(area_pix, area_adj, conf_int))
+    tb1 <- t(dplyr::bind_rows(area_pix, area_adj, conf_int, coef_var))
     colnames(tb1) <- c(
         "Mapped Area (ha)",
         "Error-Adjusted Area (ha)",
-        "Conf Interval (ha)"
+        "Conf Interval (ha)",
+        "Coef Variation (%)"
     )
 
     cat("\nMapped Area x Estimated Area (ha)\n")
     print(tb1)
     return(invisible(x))
+}
+#' @title Plot area-weighted accuracy results
+#' @name plot.sits_area_accuracy
+#' @author Estefania Pizarro, \email{epizarro04@@gmail.com}
+#
+#' @description Produces two plots for a \code{sits_area_accuracy} object:
+#' (1) mapped vs. error-adjusted area per class with 95\% confidence interval;
+#' (2) user's and producer's area-weighted accuracy per class.
+#'
+#' @param x         An object of class \code{sits_area_accuracy}.
+#' @param \dots     Ignored.
+#' @return          A list with two \code{ggplot} objects (invisible).
+#'
+#' @keywords internal
+#' @export
+plot.sits_area_accuracy <- function(x, ...) {
+    .check_require_packages("ggplot2")
+
+    classes <- names(x[["area_pixels"]])
+
+    df_area <- data.frame(
+        class          = classes,
+        area_pixels    = as.numeric(x[["area_pixels"]]),
+        adj_area       = as.numeric(x[["error_ajusted_area"]]),
+        conf_interval  = as.numeric(x[["conf_interval"]]),
+        stringsAsFactors = FALSE
+    )
+
+    df_acc <- data.frame(
+        class    = classes,
+        user     = as.numeric(x[["accuracy"]][["user"]]),
+        producer = as.numeric(x[["accuracy"]][["producer"]]),
+        se_user  = as.numeric(x[["accuracy"]][["stderr_user"]]),
+        se_prod  = as.numeric(x[["accuracy"]][["stderr_producer"]]),
+        stringsAsFactors = FALSE
+    )
+
+    # reorder classes by total area descending
+    class_order <- df_area[["class"]][order(
+        df_area[["area_pixels"]] + df_area[["adj_area"]],
+        decreasing = TRUE
+    )]
+
+    df_long_area <- stats::reshape(
+        df_area[, c("class", "area_pixels", "adj_area")],
+        varying   = list(c("area_pixels", "adj_area")),
+        v.names   = "Area",
+        timevar   = "Type",
+        times     = c("Mapped area", "Error-adjusted area"),
+        direction = "long"
+    )
+    df_long_area[["class"]] <- factor(
+        df_long_area[["class"]], levels = class_order
+    )
+
+    df_ci <- df_area
+    df_ci[["class"]] <- factor(df_ci[["class"]], levels = class_order)
+
+    p_area <- ggplot2::ggplot(
+        df_long_area,
+        ggplot2::aes(
+            x    = .data[["class"]],
+            y    = .data[["Area"]],
+            fill = .data[["Type"]]
+        )
+    ) +
+        ggplot2::geom_bar(
+            stat     = "identity",
+            position = ggplot2::position_dodge(width = 0.9)
+        ) +
+        ggplot2::geom_errorbar(
+            data = df_ci,
+            ggplot2::aes(
+                x    = as.numeric(factor(.data[["class"]], levels = class_order)) + 0.22,
+                ymin = .data[["adj_area"]] - .data[["conf_interval"]],
+                ymax = .data[["adj_area"]] + .data[["conf_interval"]]
+            ),
+            inherit.aes = FALSE,
+            width = 0.2
+        ) +
+        ggplot2::scale_fill_manual(
+            values = c("Mapped area" = "#08519c", "Error-adjusted area" = "#6baed6")
+        ) +
+        ggplot2::labs(
+            x    = NULL,
+            y    = "Area (pixels)",
+            fill = NULL,
+            title = "Mapped vs. Error-Adjusted Area with 95% CI"
+        ) +
+        ggplot2::theme_minimal(base_size = 12L) +
+        ggplot2::theme(
+            axis.text.x  = ggplot2::element_text(angle = 45L, hjust = 1L),
+            legend.position = "bottom"
+        )
+
+    df_long_acc <- stats::reshape(
+        df_acc[, c("class", "user", "producer")],
+        varying   = list(c("user", "producer")),
+        v.names   = "Accuracy",
+        timevar   = "Type",
+        times     = c("User's", "Producer's"),
+        direction = "long"
+    )
+    df_long_acc[["se"]] <- c(df_acc[["se_user"]], df_acc[["se_prod"]])
+    df_long_acc[["class"]] <- factor(
+        df_long_acc[["class"]], levels = class_order
+    )
+
+    p_acc <- ggplot2::ggplot(
+        df_long_acc,
+        ggplot2::aes(
+            x    = .data[["class"]],
+            y    = .data[["Accuracy"]],
+            fill = .data[["Type"]]
+        )
+    ) +
+        ggplot2::geom_col(
+            position = ggplot2::position_dodge(width = 0.8),
+            width    = 0.7
+        ) +
+        ggplot2::geom_errorbar(
+            ggplot2::aes(
+                ymin = pmax(0L, .data[["Accuracy"]] - 1.96 * .data[["se"]]),
+                ymax = pmin(1L, .data[["Accuracy"]] + 1.96 * .data[["se"]])
+            ),
+            position = ggplot2::position_dodge(width = 0.8),
+            width    = 0.2
+        ) +
+        ggplot2::scale_fill_manual(
+            values = c("User's" = "#08519c", "Producer's" = "#6baed6")
+        ) +
+        ggplot2::scale_y_continuous(limits = c(0L, 1L)) +
+        ggplot2::labs(
+            x     = NULL,
+            y     = "Accuracy",
+            fill  = NULL,
+            title = "Area-Weighted User's and Producer's Accuracy with 95% CI"
+        ) +
+        ggplot2::theme_minimal(base_size = 12L) +
+        ggplot2::theme(
+            axis.text.x  = ggplot2::element_text(angle = 45L, hjust = 1L),
+            legend.position = "bottom"
+        )
+
+    print(p_area)
+    print(p_acc)
+    return(invisible(list(area = p_area, accuracy = p_acc)))
 }

@@ -39,7 +39,8 @@
 #' @return
 #' A list of lists: The error_matrix, the class_areas, the unbiased
 #' estimated areas, the standard error areas, confidence interval 95% areas,
-#' and the accuracy (user, producer, and overall).
+#' the coefficient of variation per class, and the accuracy (user, producer,
+#' and overall).
 .accuracy_area_assess <- function(cube, pred, ref) {
     # set caller to show in errors
     .check_set_caller(".accuracy_area_assess")
@@ -115,6 +116,46 @@
     # overall area-weighted accuracy
     over_acc <- sum(diag(prop))
 
+    # variance of overall accuracy (Eq. 5 in Olofsson et al. 2014)
+    var_overall <- sum(
+        weight^2L * user_acc * (1L - user_acc) / (class_areas - 1L),
+        na.rm = TRUE
+    )
+
+    # variance of user's accuracy (Eq. 6 in Olofsson et al. 2014)
+    var_user <- user_acc * (1L - user_acc) / (class_areas - 1L)
+
+    # variance of producer's accuracy (Eq. 7 in Olofsson et al. 2014)
+    n_classes <- length(class_areas)
+    # N_dot_j: estimated total number of pixels in reference class j
+    N_j <- colSums(sweep(error_matrix, 1L, area / class_areas, "*"))
+    var_prod <- vapply(seq_len(n_classes), function(cj) {
+        off <- seq_len(n_classes)[-cj]
+        # sum over i != j of the off-diagonal variance contribution
+        off_sum <- sum(
+            area[off]^2L * error_matrix[off, cj] / class_areas[off] *
+                (1L - error_matrix[off, cj] / class_areas[off]) /
+                (class_areas[off] - 1L),
+            na.rm = TRUE
+        )
+        (1L / N_j[cj]^2L) * (
+            area[cj]^2L * (1L - prod_acc[cj])^2L *
+                user_acc[cj] * (1L - user_acc[cj]) /
+                (class_areas[cj] - 1L) +
+            prod_acc[cj]^2L * off_sum
+        )
+    }, numeric(1L))
+    var_prod[is.nan(var_prod)] <- 0L
+    names(var_prod) <- names(prod_acc)
+
+    # coefficient of variation per class (SE / estimated area)
+    # cf. Olofsson et al. (2014) good practices
+    coef_variation <- ifelse(
+        error_adjusted_area > 0,
+        stderr_area / error_adjusted_area,
+        NA_real_
+    )
+
     acc_area <- list(
         error_matrix = error_matrix,
         area_pixels = area,
@@ -122,10 +163,14 @@
         stderr_prop = stderr_prop,
         stderr_area = stderr_area,
         conf_interval = 1.96 * stderr_area,
+        coef_variation = coef_variation,
         accuracy = list(
             user = user_acc,
             producer = prod_acc,
-            overall = over_acc
+            overall = over_acc,
+            stderr_user = sqrt(var_user),
+            stderr_producer = sqrt(var_prod),
+            stderr_overall = sqrt(var_overall)
         )
     )
     class(acc_area) <- c("sits_area_accuracy", class(acc_area))
