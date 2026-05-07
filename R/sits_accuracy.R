@@ -528,6 +528,9 @@ plot.sits_area_accuracy <- function(x, ...) {
 
     classes <- names(x[["area_pixels"]])
 
+    blue_light <- "#BDD7EE"
+    blue_dark  <- "#2E75B6"
+
     # ---- data frames ----
     df_area <- data.frame(
         class         = classes,
@@ -542,9 +545,6 @@ plot.sits_area_accuracy <- function(x, ...) {
     se_user  <- as.numeric(x[["accuracy"]][["stderr_user"]])
     se_prod  <- as.numeric(x[["accuracy"]][["stderr_producer"]])
 
-    cv_user <- ifelse(user_acc > 0, se_user / user_acc * 100, NA_real_)
-    cv_prod <- ifelse(prod_acc > 0, se_prod / prod_acc * 100, NA_real_)
-
     # long data frame for accuracy plot (one row per class × type)
     df_acc <- data.frame(
         class    = rep(classes, 2L),
@@ -553,11 +553,9 @@ plot.sits_area_accuracy <- function(x, ...) {
             rep("Producer's accuracy", length(classes))
         ),
         Accuracy = c(user_acc, prod_acc),
-        se       = c(se_user, se_prod),
-        cv       = c(cv_user, cv_prod),
+        ci       = 1.96 * c(se_user, se_prod),
         stringsAsFactors = FALSE
     )
-    df_acc[["cv_label"]] <- sprintf("CV: %.2f%%", df_acc[["cv"]])
 
     # order classes by total area descending
     class_order <- df_area[["class"]][order(
@@ -591,7 +589,7 @@ plot.sits_area_accuracy <- function(x, ...) {
         ggplot2::geom_bar(
             stat     = "identity",
             position = ggplot2::position_dodge(width = 0.9),
-            color    = "black"
+            color    = "white"
         ) +
         ggplot2::geom_errorbar(
             data = df_ci,
@@ -604,9 +602,12 @@ plot.sits_area_accuracy <- function(x, ...) {
                 ymax = .data[["adj_area"]] + .data[["conf_interval"]]
             ),
             inherit.aes = FALSE,
-            width       = 0.2
+            width       = 0.2,
+            color       = "black"
         ) +
-        ggplot2::scale_fill_grey(start = 0.7, end = 0.3) +
+        ggplot2::scale_fill_manual(
+            values = c("Area pixels" = blue_light, "Error adjusted area" = blue_dark)
+        ) +
         ggplot2::scale_y_continuous(labels = scales::comma) +
         ggplot2::labs(x = "Label", y = "Area (ha)", fill = NULL) +
         ggplot2::theme_minimal() +
@@ -622,7 +623,7 @@ plot.sits_area_accuracy <- function(x, ...) {
             legend.position    = "bottom"
         )
 
-    # ---- Plot 2: user's and producer's accuracy with CV labels ----
+    # ---- Plot 2: user's and producer's accuracy with 95% CI error bars ----
     df_acc[["class"]] <- factor(df_acc[["class"]], levels = class_order)
 
     p_acc <- ggplot2::ggplot(
@@ -636,20 +637,25 @@ plot.sits_area_accuracy <- function(x, ...) {
         ggplot2::geom_bar(
             stat     = "identity",
             position = ggplot2::position_dodge(width = 0.9),
-            color    = "black"
+            color    = "white"
         ) +
-        ggplot2::geom_text(
+        ggplot2::geom_errorbar(
             ggplot2::aes(
-                label = .data[["cv_label"]],
-                y     = .data[["Accuracy"]] + 0.02
+                ymin = .data[["Accuracy"]] - .data[["ci"]],
+                ymax = .data[["Accuracy"]] + .data[["ci"]]
             ),
             position = ggplot2::position_dodge(width = 0.9),
-            size     = 2.5,
-            vjust    = 0
+            width    = 0.25,
+            color    = "black"
         ) +
-        ggplot2::scale_fill_grey(start = 0.7, end = 0.3) +
+        ggplot2::scale_fill_manual(
+            values = c(
+                "User's accuracy"     = blue_light,
+                "Producer's accuracy" = blue_dark
+            )
+        ) +
         ggplot2::scale_y_continuous(
-            limits = c(0, 1.2),
+            limits = c(0, 1.1),
             breaks = seq(0, 1, by = 0.1),
             labels = scales::number_format(accuracy = 0.01)
         ) +
