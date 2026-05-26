@@ -26,6 +26,7 @@
 #' @param multicores  Number of cores to be used for generate the
 #'                    mixture model.
 #' @param output_dir  Directory for output images.
+#' @param verbose     Logical: print information about processing time?
 #' @param progress    Show progress bar? Default is TRUE.
 #'
 #' @return In case of a cube, a sits cube with the fractions of each endmember
@@ -167,6 +168,7 @@ sits_mixture_model.raster_cube <- function(data, endmembers, ...,
                                            memsize = 4L,
                                            multicores = 2L,
                                            output_dir,
+                                           verbose = FALSE,
                                            progress = TRUE) {
     # Pre-conditions
     .check_is_raster_cube(data)
@@ -176,6 +178,8 @@ sits_mixture_model.raster_cube <- function(data, endmembers, ...,
     .check_lgl_parameter(progress)
     # show progress bar?
     progress <- .message_progress(progress)
+    # documentation mode? verbose is FALSE
+    verbose <- .message_verbose(verbose)
     # Transform endmembers to tibble
     em <- .endmembers_as_tbl(endmembers)
     # Check endmember format
@@ -224,6 +228,9 @@ sits_mixture_model.raster_cube <- function(data, endmembers, ...,
     if (.parallel_start(workers = multicores)) {
         on.exit(.parallel_stop(), add = TRUE)
     }
+    # Show processing time information
+    start_time <- .classify_verbose_start(verbose, block)
+    on.exit(.classify_verbose_end(verbose, start_time), add = TRUE)
     # Create mixture processing function
     mixture_fn <- .mixture_fn_nnls(em = em, rmse = rmse_band)
     # Create features as jobs

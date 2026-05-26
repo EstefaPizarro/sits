@@ -16,6 +16,7 @@
 #' @param memsize       Memory available for classification (in GB).
 #' @param multicores    Number of cores to be used for classification.
 #' @param output_dir    Directory where files will be saved.
+#' @param verbose       Logical: print information about processing time?
 #' @param progress      Show progress bar?
 #' @param ...           Named expressions to be evaluated (see details).
 #'
@@ -130,6 +131,7 @@ sits_reduce.raster_cube <- function(data, ...,
                                     memsize = 4L,
                                     multicores = 2L,
                                     output_dir,
+                                    verbose = FALSE,
                                     progress = TRUE) {
     # Check cube
     .check_is_raster_cube(data)
@@ -140,6 +142,8 @@ sits_reduce.raster_cube <- function(data, ...,
     .check_num_parameter(multicores, min = 1L, max = 2048L)
     # Check output_dir
     .check_output_dir(output_dir)
+    # documentation mode? verbose is FALSE
+    verbose <- .message_verbose(verbose)
 
     # Get cube bands
     bands <- .cube_bands(data)
@@ -185,7 +189,9 @@ sits_reduce.raster_cube <- function(data, ...,
     if (.parallel_start(workers = multicores)) {
         on.exit(.parallel_stop(), add = TRUE)
     }
-
+    # Show processing time information
+    start_time <- .classify_verbose_start(verbose, block)
+    on.exit(.classify_verbose_end(verbose, start_time), add = TRUE)
     # Reducing
     # Process each tile sequentially
     .cube_foreach_tile(data, function(tile) {

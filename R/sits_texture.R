@@ -49,6 +49,7 @@
 #' @param memsize       Memory available for classification (in GB).
 #' @param multicores    Number of cores to be used for classification.
 #' @param output_dir    Directory where files will be saved.
+#' @param verbose       Logical: print information about processing time?
 #' @param progress      Show progress bar?
 #' @param ...           GLCM function (see details).
 #'
@@ -129,6 +130,7 @@ sits_texture.raster_cube <- function(cube, ...,
                                      memsize = 4L,
                                      multicores = 2L,
                                      output_dir,
+                                     verbose = FALSE,
                                      progress = TRUE) {
     # Check cube
     .check_is_raster_cube(cube)
@@ -145,6 +147,8 @@ sits_texture.raster_cube <- function(cube, ...,
     .check_output_dir(output_dir)
     # show progress bar?
     progress <- .message_progress(progress)
+    # documentation mode? verbose is FALSE
+    verbose <- .message_verbose(verbose)
 
     # Get cube bands
     bands <- .cube_bands(cube)
@@ -187,7 +191,9 @@ sits_texture.raster_cube <- function(cube, ...,
     if (.parallel_start(workers = multicores)) {
         on.exit(.parallel_stop(), add = TRUE)
     }
-
+    # Show processing time information
+    start_time <- .classify_verbose_start(verbose, block)
+    on.exit(.classify_verbose_end(verbose, start_time), add = TRUE)
     # Create features as jobs
     features_cube <- .cube_split_features(cube)
 

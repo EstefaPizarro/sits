@@ -20,6 +20,7 @@
 #' @param multicores    Number of cores to be used for classification.
 #' @param output_dir    Directory where files will be saved.
 #' @param normalized    Does the expression produces a normalized band?
+#' @param verbose       Logical: print information about processing time?
 #' @param progress      Show progress bar?
 #' @param ...           Named expressions to be evaluated (see details).
 #'
@@ -159,6 +160,7 @@ sits_apply.raster_cube <- function(data, ...,
                                    multicores = 2L,
                                    normalized = TRUE,
                                    output_dir,
+                                   verbose = FALSE,
                                    progress = TRUE) {
     # check cube
     .check_is_raster_cube(data)
@@ -175,6 +177,8 @@ sits_apply.raster_cube <- function(data, ...,
     .check_output_dir(output_dir)
     # show progress bar?
     progress <- .message_progress(progress)
+    # documentation mode? verbose is FALSE
+    verbose <- .message_verbose(verbose)
 
     # get cube bands
     bands <- .cube_bands(data)
@@ -226,6 +230,9 @@ sits_apply.raster_cube <- function(data, ...,
     if (.parallel_start(workers = multicores)) {
         on.exit(.parallel_stop(), add = TRUE)
     }
+    # Show processing time information
+    start_time <- .classify_verbose_start(verbose, block)
+    on.exit(.classify_verbose_end(verbose, start_time), add = TRUE)
     # Create features as jobs
     features_cube <- .cube_split_features(data)
 
