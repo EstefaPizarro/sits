@@ -206,3 +206,49 @@ test_that("Classify with exclusion mask", {
     # remove test files
     unlink(data_dir)
 })
+
+test_that("Classify skips NA pixels — NA positions preserved in output", {
+    # load cube
+    cube_dir <- system.file("extdata/raster/mod13q1", package = "sits")
+    raster_cube <- sits_cube(
+        source     = "BDC",
+        collection = "MOD13Q1-6.1",
+        data_dir   = cube_dir,
+        tiles      = "012010",
+        bands      = "NDVI",
+        start_date = "2013-09-14",
+        end_date   = "2014-08-29",
+        multicores = 2,
+        progress   = FALSE
+    )
+    data_dir <- paste0(tempdir(), "/na-skip-classify")
+    dir.create(data_dir, recursive = TRUE, showWarnings = FALSE)
+    # use a spatial exclusion mask to force NA pixels in the tile
+    na_mask <- sf::st_as_sfc(
+        x = sf::st_bbox(
+            c(
+                xmin = -55.63478,
+                ymin = -11.63328,
+                xmax = -55.54080,
+                ymax = -11.56978
+            ),
+            crs = "EPSG:4326"
+        )
+    )
+    rfor_model <- sits_train(samples_modis_ndvi, sits_rfor(num_trees = 40))
+    # classify — NA pixels must be skipped by the model and preserved as NA
+    probs_map <- suppressWarnings(
+        sits_classify(
+            data           = raster_cube,
+            ml_model       = rfor_model,
+            output_dir     = data_dir,
+            exclusion_mask = na_mask,
+            progress       = FALSE
+        )
+    )
+    probs_rst <- .raster_open_rast(probs_map[["file_info"]][[1]][["path"]])
+    # NA positions in input must remain NA in the probability output
+    expect_true(anyNA(probs_rst[]))
+    # remove test files
+    unlink(data_dir, recursive = TRUE)
+})

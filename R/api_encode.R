@@ -147,20 +147,38 @@
         )
         # Get mask of NA pixels
         na_mask <- C_mask_na(values)
-        # Fill with zeros remaining NA pixels
-        values <- C_fill_na(values, 0.0)
         # Define control variable to check for correct termination
         input_pixels <- nrow(values)
+        # Skip NA pixels: only pass valid rows to the encoder
+        has_na <- any(na_mask)
+        if (has_na) {
+            valid_values <- values[!na_mask, , drop = FALSE]
+        } else {
+            # No NAs — fill residual NAs with zero and use all values
+            values <- C_fill_na(values, 0.0)
+            valid_values <- values
+        }
         # Start log file
         .debug_log(
             event = "start_block_data_encoding",
             key = "model",
             value = .ml_class(encoder)
         )
-        # Apply the encoder model to values
+        # Apply the encoder model to valid pixels only
         # Uses the closure created by sits_pre_train
-        values <- encoder(values)
-
+        valid_values <- encoder(valid_values)
+        # Reconstruct full-size matrix with NA in original NA positions
+        if (has_na) {
+            values <- matrix(
+                NA_real_,
+                nrow = input_pixels,
+                ncol = ncol(valid_values)
+            )
+            colnames(values) <- colnames(valid_values)
+            values[!na_mask, ] <- valid_values
+        } else {
+            values <- valid_values
+        }
         # Are the results consistent with the data input?
         .check_processed_values(
             values = values,
