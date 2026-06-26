@@ -337,7 +337,6 @@
     size <- ceiling(max(size) / nrow(cube))
     # get labels
     labels <- .cube_labels(cube)
-    covers <- names(labels)
     # Create assets as jobs
     cube_assets <- .cube_split_assets(cube)
     # Process each asset in parallel
@@ -495,6 +494,9 @@
     ) |>
         dplyr::select("labels", "label_id", dplyr::all_of(alloc)) |>
         dplyr::rename("label" = "labels")
-    # include overhead
-    samples_per_class <- ceiling(unlist(samples_per_class[[alloc]]) * overhead)
+    # include overhead and preserve label names
+    label_names <- samples_per_class[["label"]]
+    samples_per_class <- ceiling(samples_per_class[[alloc]] * overhead)
+    names(samples_per_class) <- label_names
+    samples_per_class
 }

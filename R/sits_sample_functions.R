@@ -598,7 +598,6 @@ sits_stratified_sampling <- function(cube,
         .check_that(alloc %in% colnames(sampling_design),
                     msg = .conf("messages", "sits_stratified_sampling_alloc")
         )
-
         # check samples by class
         samples_per_class <- .samples_by_design(sampling_design,
                                                 labels,
@@ -613,6 +612,8 @@ sits_stratified_sampling <- function(cube,
                         msg = .conf("messages",
                                     "sits_stratified_sampling_wrong_labels"))
         }
+        # apply overhead to fixed samples_per_class
+        samples_per_class <- ceiling(samples_per_class * overhead)
     }
     # The following functions define optimal parameters for parallel processing
     # Get block size
