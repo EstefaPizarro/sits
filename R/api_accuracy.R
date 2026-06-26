@@ -130,11 +130,19 @@
     # N_dot_j: estimated total number of pixels in reference class j
     N_j <- colSums(sweep(error_matrix, 1L, area / class_areas, "*"))
     var_prod <- purrr::map_dbl(seq_len(n_classes), function(cj) {
-        p_ij <- error_matrix[, cj] / class_areas
-        sum(
-            area^2L * p_ij * (1L - p_ij) / (class_areas - 1L),
+        off <- seq_len(n_classes)[-cj]
+        off_sum <- sum(
+            area[off]^2L * error_matrix[off, cj] / class_areas[off] *
+                (1L - error_matrix[off, cj] / class_areas[off]) /
+                (class_areas[off] - 1L),
             na.rm = TRUE
-        ) / N_j[cj]^2L
+        )
+        (1L / N_j[cj]^2L) * (
+            area[cj]^2L * (1L - prod_acc[cj])^2L *
+                user_acc[cj] * (1L - user_acc[cj]) /
+                (class_areas[cj] - 1L) +
+            prod_acc[cj]^2L * off_sum
+        )
     })
     var_prod[is.nan(var_prod)] <- 0.0
     names(var_prod) <- names(prod_acc)

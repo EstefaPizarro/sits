@@ -130,8 +130,8 @@ test_that("Accuracy areas", {
         sits_accuracy(label_cube, validation = ground_truth)
     )))
 
-    expect_true(as.numeric(as$area_pixels["Forest"]) >
-        as$area_pixels["Pasture"])
+    expect_true(as.numeric(as$mapped_area["Forest"]) >
+        as$mapped_area["Pasture"])
     expect_identical(as.numeric(as$accuracy$overall),
         expected = 0.75,
         tolerance = 0.5
@@ -153,8 +153,8 @@ test_that("Accuracy areas", {
     )
     as2 <- sits_accuracy(label_cube, validation = samples_csv)
 
-    expect_true(as.numeric(as2$area_pixels["Forest"]) >
-        as2$area_pixels["Pasture"])
+    expect_true(as.numeric(as2$mapped_area["Forest"]) >
+        as2$mapped_area["Pasture"])
     expect_equal(as.numeric(as2$accuracy$overall),
         expected = 0.75,
         tolerance = 0.5
@@ -168,8 +168,8 @@ test_that("Accuracy areas", {
         dplyr::rename("geom" = "geometry")
     as3 <- sits_accuracy(label_cube, validation = samples_sf)
 
-    expect_true(as.numeric(as3$area_pixels["Forest"]) >
-        as3$area_pixels["Pasture"])
+    expect_true(as.numeric(as3$mapped_area["Forest"]) >
+        as3$mapped_area["Pasture"])
     expect_equal(as.numeric(as3$accuracy$overall),
         expected = 0.75,
         tolerance = 0.5
@@ -226,8 +226,8 @@ test_that("Accuracy areas when samples labels do not match cube labels", {
         data = reclass, validation = samples_modis_ndvi
     )
 
-    expect_true(as.numeric(acc$area_pixels["Forest"]) >
-        acc$area_pixels["Cerrado"])
+    expect_true(as.numeric(acc$mapped_area["Forest"]) >
+        acc$mapped_area["Cerrado"])
     expect_equal(as.numeric(acc$accuracy$overall),
         expected = 0.33,
         tolerance = 0.5
