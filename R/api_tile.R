@@ -1537,7 +1537,7 @@ NULL
     # Retrieve the area
     freq <- segments |>
         dplyr::group_by(class) |>
-        dplyr::summarise(area = sum(.data[["area"]])) |>
+        dplyr::summarise(area = sum(.data[["area"]]) / 10000) |>
         dplyr::select(c(dplyr::all_of("area"), dplyr::all_of("class")))
     # Return frequencies
     freq

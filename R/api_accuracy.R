@@ -130,27 +130,13 @@
     # N_dot_j: estimated total number of pixels in reference class j
     N_j <- colSums(sweep(error_matrix, 1L, area / class_areas, "*"))
     var_prod <- purrr::map_dbl(seq_len(n_classes), function(cj) {
-        off <- seq_len(n_classes)[-cj]
-        # sum over i != j of the off-diagonal variance contribution
-        off_sum <- sum(
-            area[off]^2L * error_matrix[off, cj] / class_areas[off] *
-                (1L - error_matrix[off, cj] / class_areas[off]) /
-                (class_areas[off] - 1L),
+        p_ij <- error_matrix[, cj] / class_areas
+        sum(
+            area^2L * p_ij * (1L - p_ij) / (class_areas - 1L),
             na.rm = TRUE
-        )
-        # Component 1: area ratio term
-        area_ratio <- area[cj]^2L / (N_j[cj]^2L)
-        # Component 2: omission error factor (1 - producer's accuracy)
-        omission_factor <- (1L - prod_acc[cj])^2L
-        # Component 3: user accuracy variance numerator
-        user_acc_var <- user_acc[cj] * (1L - user_acc[cj]) /
-            (class_areas[cj] - 1L)
-        # Component 4: commission error variance term
-        commission_var <- prod_acc[cj]^2L * off_sum
-        # Final variance estimate
-        area_ratio * (omission_factor * user_acc_var + commission_var)
+        ) / N_j[cj]^2L
     })
-    var_prod[is.nan(var_prod)] <- 0L
+    var_prod[is.nan(var_prod)] <- 0.0
     names(var_prod) <- names(prod_acc)
 
     # coefficient of variation per class (SE / estimated area)

@@ -3022,7 +3022,6 @@ plot.sits_tsne <- function(x, y, palette = NULL, ...) {
 #' @param \dots     Ignored.
 #' @return          A list with two \code{ggplot} objects (invisible).
 #'
-#' @keywords internal
 #' @export
 plot.sits_area_accuracy <- function(x, ...) {
     .check_require_packages(c("ggplot2", "scales"))
