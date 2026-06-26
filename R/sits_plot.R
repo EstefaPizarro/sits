@@ -3013,7 +3013,7 @@ plot.sits_tsne <- function(x, y, palette = NULL, ...) {
 #' @title Plot area-weighted accuracy results
 #' @name plot.sits_area_accuracy
 #' @author Estefania Pizarro, \email{epizarro04@@gmail.com}
-#
+#'
 #' @description Produces two plots for a \code{sits_area_accuracy} object:
 #' (1) mapped vs. error-adjusted area per class with 95\% confidence interval;
 #' (2) user's and producer's area-weighted accuracy per class.
@@ -3037,8 +3037,7 @@ plot.sits_area_accuracy <- function(x, ...) {
         class         = classes,
         area_pixels   = as.numeric(x[["area_pixels"]]),
         adj_area      = as.numeric(x[["error_ajusted_area"]]),
-        conf_interval = as.numeric(x[["conf_interval"]]),
-        stringsAsFactors = FALSE
+        conf_interval = as.numeric(x[["conf_interval"]])
     )
 
     user_acc <- as.numeric(x[["accuracy"]][["user"]])
@@ -3046,8 +3045,7 @@ plot.sits_area_accuracy <- function(x, ...) {
     se_user  <- as.numeric(x[["accuracy"]][["stderr_user"]])
     se_prod  <- as.numeric(x[["accuracy"]][["stderr_producer"]])
 
-    # z-score for 95% confidence interval (normal approximation)
-    z_95 <- 1.96
+    z_95 <- .conf("z_score_95ci")
 
     # long data frame for accuracy plot (one row per class x type)
     df_acc <- data.frame(
@@ -3057,8 +3055,7 @@ plot.sits_area_accuracy <- function(x, ...) {
             rep("Producer's accuracy", length(classes))
         ),
         Accuracy = c(user_acc, prod_acc),
-        ci       = z_95 * c(se_user, se_prod),
-        stringsAsFactors = FALSE
+        ci       = z_95 * c(se_user, se_prod)
     )
 
     # order classes by total area descending
@@ -3067,6 +3064,8 @@ plot.sits_area_accuracy <- function(x, ...) {
         dplyr::desc(.data[["area_pixels"]] + .data[["adj_area"]])
     )[["class"]]
 
+    bar_offset <- .conf("area_accuracy_bar_offset")
+
     # ---- Plot 1: mapped vs. error-adjusted area ----
     df_1 <- data.frame(
         class = rep(classes, 2L),
@@ -3074,8 +3073,7 @@ plot.sits_area_accuracy <- function(x, ...) {
             rep("Area pixels", length(classes)),
             rep("Error adjusted area", length(classes))
         ),
-        Area  = c(df_area[["area_pixels"]], df_area[["adj_area"]]),
-        stringsAsFactors = FALSE
+        Area  = c(df_area[["area_pixels"]], df_area[["adj_area"]])
     )
     df_1[["class"]] <- factor(df_1[["class"]], levels = class_order)
 
@@ -3098,11 +3096,9 @@ plot.sits_area_accuracy <- function(x, ...) {
         ggplot2::geom_errorbar(
             data = df_ci,
             ggplot2::aes(
-                # 0.22 offsets the bar to align the error bar with
-                # the right (error-adjusted area) bar in the dodged pair
                 x    = as.numeric(
                     factor(.data[["class"]], levels = class_order)
-                ) + 0.22,
+                ) + bar_offset,
                 y    = .data[["adj_area"]],
                 ymin = .data[["adj_area"]] - .data[["conf_interval"]],
                 ymax = .data[["adj_area"]] + .data[["conf_interval"]]

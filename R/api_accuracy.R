@@ -167,7 +167,7 @@
         error_ajusted_area = error_adjusted_area,
         stderr_prop = stderr_prop,
         stderr_area = stderr_area,
-        conf_interval = 1.96 * stderr_area,
+        conf_interval = .conf("z_score_95ci") * stderr_area,
         coef_variation = coef_variation,
         accuracy = list(
             user = user_acc,
