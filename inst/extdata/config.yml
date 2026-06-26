@@ -15,4 +15,7 @@ plot:
     legend_title: "values"
     scale: 1.0
     font_family: "sans"
+    area_accuracy:
+        blue_light: "#BDD7EE"
+        blue_dark: "#2E75B6"
 

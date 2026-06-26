@@ -3010,3 +3010,179 @@ plot.sits_tsne <- function(x, y, palette = NULL, ...) {
     print(gp)
     invisible(gp)
 }
+#' @title Plot area-weighted accuracy results
+#' @name plot.sits_area_accuracy
+#' @author Estefania Pizarro, \email{epizarro04@@gmail.com}
+#
+#' @description Produces two plots for a \code{sits_area_accuracy} object:
+#' (1) mapped vs. error-adjusted area per class with 95\% confidence interval;
+#' (2) user's and producer's area-weighted accuracy per class.
+#'
+#' @param x         An object of class \code{sits_area_accuracy}.
+#' @param \dots     Ignored.
+#' @return          A list with two \code{ggplot} objects (invisible).
+#'
+#' @keywords internal
+#' @export
+plot.sits_area_accuracy <- function(x, ...) {
+    .check_require_packages(c("ggplot2", "scales"))
+
+    classes <- names(x[["area_pixels"]])
+
+    blue_light <- .conf("plot", "area_accuracy", "blue_light")
+    blue_dark  <- .conf("plot", "area_accuracy", "blue_dark")
+
+    # ---- data frames ----
+    df_area <- data.frame(
+        class         = classes,
+        area_pixels   = as.numeric(x[["area_pixels"]]),
+        adj_area      = as.numeric(x[["error_ajusted_area"]]),
+        conf_interval = as.numeric(x[["conf_interval"]]),
+        stringsAsFactors = FALSE
+    )
+
+    user_acc <- as.numeric(x[["accuracy"]][["user"]])
+    prod_acc <- as.numeric(x[["accuracy"]][["producer"]])
+    se_user  <- as.numeric(x[["accuracy"]][["stderr_user"]])
+    se_prod  <- as.numeric(x[["accuracy"]][["stderr_producer"]])
+
+    # z-score for 95% confidence interval (normal approximation)
+    z_95 <- 1.96
+
+    # long data frame for accuracy plot (one row per class x type)
+    df_acc <- data.frame(
+        class    = rep(classes, 2L),
+        Type     = c(
+            rep("User's accuracy", length(classes)),
+            rep("Producer's accuracy", length(classes))
+        ),
+        Accuracy = c(user_acc, prod_acc),
+        ci       = z_95 * c(se_user, se_prod),
+        stringsAsFactors = FALSE
+    )
+
+    # order classes by total area descending
+    class_order <- dplyr::arrange(
+        df_area,
+        dplyr::desc(.data[["area_pixels"]] + .data[["adj_area"]])
+    )[["class"]]
+
+    # ---- Plot 1: mapped vs. error-adjusted area ----
+    df_1 <- data.frame(
+        class = rep(classes, 2L),
+        Type  = c(
+            rep("Area pixels", length(classes)),
+            rep("Error adjusted area", length(classes))
+        ),
+        Area  = c(df_area[["area_pixels"]], df_area[["adj_area"]]),
+        stringsAsFactors = FALSE
+    )
+    df_1[["class"]] <- factor(df_1[["class"]], levels = class_order)
+
+    df_ci <- df_area
+    df_ci[["class"]] <- factor(df_ci[["class"]], levels = class_order)
+
+    p_area <- ggplot2::ggplot(
+        df_1,
+        ggplot2::aes(
+            x    = .data[["class"]],
+            y    = .data[["Area"]],
+            fill = .data[["Type"]]
+        )
+    ) +
+        ggplot2::geom_bar(
+            stat     = "identity",
+            position = ggplot2::position_dodge(width = 0.9),
+            color    = "white"
+        ) +
+        ggplot2::geom_errorbar(
+            data = df_ci,
+            ggplot2::aes(
+                # 0.22 offsets the bar to align the error bar with
+                # the right (error-adjusted area) bar in the dodged pair
+                x    = as.numeric(
+                    factor(.data[["class"]], levels = class_order)
+                ) + 0.22,
+                y    = .data[["adj_area"]],
+                ymin = .data[["adj_area"]] - .data[["conf_interval"]],
+                ymax = .data[["adj_area"]] + .data[["conf_interval"]]
+            ),
+            inherit.aes = FALSE,
+            width       = 0.2,
+            color       = "black"
+        ) +
+        ggplot2::scale_fill_manual(
+            values = c(
+                "Area pixels"        = blue_light,
+                "Error adjusted area" = blue_dark
+            )
+        ) +
+        ggplot2::scale_y_continuous(labels = scales::comma) +
+        ggplot2::labs(x = "Label", y = "Area (ha)", fill = NULL) +
+        ggplot2::theme_minimal() +
+        ggplot2::theme(
+            panel.grid.major.y = ggplot2::element_line(
+                color = "lightgray", linewidth = 0.5
+            ),
+            panel.grid.major.x = ggplot2::element_blank(),
+            panel.grid.minor   = ggplot2::element_blank(),
+            axis.text.x        = ggplot2::element_text(
+                angle = 45, hjust = 1, vjust = 1.2
+            ),
+            legend.position    = "bottom"
+        )
+
+    # ---- Plot 2: user's and producer's accuracy with 95% CI error bars ----
+    df_acc[["class"]] <- factor(df_acc[["class"]], levels = class_order)
+
+    p_acc <- ggplot2::ggplot(
+        df_acc,
+        ggplot2::aes(
+            x    = .data[["class"]],
+            y    = .data[["Accuracy"]],
+            fill = .data[["Type"]]
+        )
+    ) +
+        ggplot2::geom_bar(
+            stat     = "identity",
+            position = ggplot2::position_dodge(width = 0.9),
+            color    = "white"
+        ) +
+        ggplot2::geom_errorbar(
+            ggplot2::aes(
+                ymin = .data[["Accuracy"]] - .data[["ci"]],
+                ymax = .data[["Accuracy"]] + .data[["ci"]]
+            ),
+            position = ggplot2::position_dodge(width = 0.9),
+            width    = 0.25,
+            color    = "black"
+        ) +
+        ggplot2::scale_fill_manual(
+            values = c(
+                "User's accuracy"     = blue_light,
+                "Producer's accuracy" = blue_dark
+            )
+        ) +
+        ggplot2::scale_y_continuous(
+            limits = c(0, 1.1),
+            breaks = seq(0, 1, by = 0.1),
+            labels = scales::number_format(accuracy = 0.01)
+        ) +
+        ggplot2::labs(x = "Label", y = "Accuracy", fill = NULL) +
+        ggplot2::theme_minimal() +
+        ggplot2::theme(
+            panel.grid.major.y = ggplot2::element_line(
+                color = "lightgray", linewidth = 0.5
+            ),
+            panel.grid.major.x = ggplot2::element_blank(),
+            panel.grid.minor   = ggplot2::element_blank(),
+            axis.text.x        = ggplot2::element_text(
+                angle = 45, hjust = 1, vjust = 1.2
+            ),
+            legend.position    = "bottom"
+        )
+
+    print(p_area)
+    print(p_acc)
+    return(invisible(list(area = p_area, accuracy = p_acc)))
+}
