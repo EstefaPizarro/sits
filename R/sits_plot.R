@@ -3063,8 +3063,6 @@ plot.sits_area_accuracy <- function(x, ...) {
         dplyr::desc(.data[["area_pixels"]] + .data[["adj_area"]])
     )[["class"]]
 
-    bar_offset <- .conf("area_accuracy_bar_offset")
-
     # ---- Plot 1: mapped vs. error-adjusted area ----
     df_1 <- data.frame(
         class = rep(classes, 2L),

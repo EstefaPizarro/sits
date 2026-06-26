@@ -588,7 +588,6 @@ sits_stratified_sampling <- function(cube,
     # or is a named vector with the cube labels
     .check_samples_per_class(samples_per_class, labels)
     # Prepare samples_per_class parameter
-
     # if a sampling_design parameter exists, use it
     if (.has(sampling_design)) {
         .check_that(nrow(sampling_design) <= n_labels)
@@ -607,7 +606,7 @@ sits_stratified_sampling <- function(cube,
         if (length(samples_per_class) == 1L) {
             samples_per_class <- rep(samples_per_class, n_labels)
             names(samples_per_class) <- labels
-        } else{
+        } else {
             .check_that(all(names(samples_per_class) %in% labels),
                         msg = .conf("messages",
                                     "sits_stratified_sampling_wrong_labels"))
