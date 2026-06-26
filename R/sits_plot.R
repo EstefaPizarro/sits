@@ -3026,7 +3026,7 @@ plot.sits_tsne <- function(x, y, palette = NULL, ...) {
 plot.sits_area_accuracy <- function(x, ...) {
     .check_require_packages(c("ggplot2", "scales"))
 
-    classes <- names(x[["area_pixels"]])
+    classes <- names(x[["mapped_area"]])
 
     blue_light <- .conf("plot", "area_accuracy", "blue_light")
     blue_dark  <- .conf("plot", "area_accuracy", "blue_dark")
@@ -3034,8 +3034,8 @@ plot.sits_area_accuracy <- function(x, ...) {
     # ---- data frames ----
     df_area <- data.frame(
         class         = classes,
-        area_pixels   = as.numeric(x[["area_pixels"]]),
-        adj_area      = as.numeric(x[["error_ajusted_area"]]),
+        area_pixels   = as.numeric(x[["mapped_area"]]),
+        adj_area      = as.numeric(x[["error_adjusted_area"]]),
         conf_interval = as.numeric(x[["conf_interval"]])
     )
 
@@ -3072,12 +3072,17 @@ plot.sits_area_accuracy <- function(x, ...) {
             rep("Area pixels", length(classes)),
             rep("Error adjusted area", length(classes))
         ),
-        Area  = c(df_area[["area_pixels"]], df_area[["adj_area"]])
+        Area  = c(df_area[["area_pixels"]], df_area[["adj_area"]]),
+        ymin  = c(
+            rep(NA_real_, length(classes)),
+            df_area[["adj_area"]] - df_area[["conf_interval"]]
+        ),
+        ymax  = c(
+            rep(NA_real_, length(classes)),
+            df_area[["adj_area"]] + df_area[["conf_interval"]]
+        )
     )
     df_1[["class"]] <- factor(df_1[["class"]], levels = class_order)
-
-    df_ci <- df_area
-    df_ci[["class"]] <- factor(df_ci[["class"]], levels = class_order)
 
     p_area <- ggplot2::ggplot(
         df_1,
@@ -3093,18 +3098,14 @@ plot.sits_area_accuracy <- function(x, ...) {
             color    = "white"
         ) +
         ggplot2::geom_errorbar(
-            data = df_ci,
             ggplot2::aes(
-                x    = as.numeric(
-                    factor(.data[["class"]], levels = class_order)
-                ) + bar_offset,
-                y    = .data[["adj_area"]],
-                ymin = .data[["adj_area"]] - .data[["conf_interval"]],
-                ymax = .data[["adj_area"]] + .data[["conf_interval"]]
+                ymin = .data[["ymin"]],
+                ymax = .data[["ymax"]]
             ),
-            inherit.aes = FALSE,
-            width       = 0.2,
-            color       = "black"
+            position = ggplot2::position_dodge(width = 0.9),
+            width    = 0.2,
+            color    = "black",
+            na.rm    = TRUE
         ) +
         ggplot2::scale_fill_manual(
             values = c(

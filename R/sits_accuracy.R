@@ -492,8 +492,8 @@ print.sits_area_accuracy <- function(x, ..., digits = 2L) {
 
     print(tb)
 
-    area_pix <- round(x[["area_pixels"]], digits = digits)
-    area_adj <- round(x[["error_ajusted_area"]], digits = digits)
+    area_pix <- round(x[["mapped_area"]], digits = digits)
+    area_adj <- round(x[["error_adjusted_area"]], digits = digits)
     conf_int <- round(x[["conf_interval"]], digits = digits)
     coef_var <- round(x[["coef_variation"]] * 100L, digits = digits)
 

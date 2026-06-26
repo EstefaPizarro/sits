@@ -1907,6 +1907,10 @@
     .check_set_caller(".check_samples_per_class")
     .check_that(length(samples_per_class) == 1L ||
                     length(samples_per_class) == length(labels))
+    if (length(samples_per_class) > 1L) {
+        .check_that(!is.null(names(samples_per_class)),
+                    msg = .conf("messages", ".check_samples_per_class"))
+    }
 }
 #' @title Check if data contains predicted and reference values
 #' @name .check_pred_ref_match

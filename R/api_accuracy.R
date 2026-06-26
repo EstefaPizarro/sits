@@ -149,8 +149,8 @@
 
     acc_area <- list(
         error_matrix = error_matrix,
-        area_pixels = area,
-        error_ajusted_area = error_adjusted_area,
+        mapped_area = area,
+        error_adjusted_area = error_adjusted_area,
         stderr_prop = stderr_prop,
         stderr_area = stderr_area,
         conf_interval = .conf("z_score_95ci") * stderr_area,
