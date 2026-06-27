@@ -164,20 +164,26 @@
             key = "model",
             value = .ml_class(encoder)
         )
-        # Apply the encoder model to valid pixels only
-        # Uses the closure created by sits_pre_train
-        valid_values <- encoder(valid_values)
-        # Reconstruct full-size matrix with NA in original NA positions
-        if (has_na) {
-            values <- matrix(
-                NA_real_,
-                nrow = input_pixels,
-                ncol = ncol(valid_values)
-            )
-            colnames(values) <- colnames(valid_values)
-            values[!na_mask, ] <- valid_values
+        # Short-circuit: all pixels are NA — skip encoder call
+        if (has_na && nrow(valid_values) == 0L) {
+            values <- matrix(NA_real_, nrow = input_pixels, ncol = length(out_bands))
+            colnames(values) <- out_bands
         } else {
-            values <- valid_values
+            # Apply the encoder model to valid pixels only
+            # Uses the closure created by sits_pre_train
+            valid_values <- encoder(valid_values)
+            # Reconstruct full-size matrix with NA in original NA positions
+            if (has_na) {
+                values <- matrix(
+                    NA_real_,
+                    nrow = input_pixels,
+                    ncol = ncol(valid_values)
+                )
+                colnames(values) <- colnames(valid_values)
+                values[!na_mask, ] <- valid_values
+            } else {
+                values <- valid_values
+            }
         }
         # Are the results consistent with the data input?
         .check_processed_values(
