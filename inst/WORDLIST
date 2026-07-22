@@ -17,6 +17,7 @@ Assunção
 Atzberger
 Aurelien
 AWS
+Bacao
 Baraldi
 BDC
 BNDES
@@ -63,6 +64,7 @@ Darabi
 Datetime
 Desenvolvimento
 Dinstein
+Douzas
 EO
 EPSG
 EVI
@@ -87,6 +89,7 @@ Fua
 GDAL
 GEOTIFF
 GRD
+GSMOTE
 GTiff
 Garnot
 Garnot's
@@ -226,6 +229,7 @@ SGD
 SHP
 SIG
 SLIC
+SMOTE
 SNIC
 SOM
 SMC
@@ -373,6 +377,7 @@ github
 gmail
 grDevices
 grey
+gsmote
 gui
 hcl
 hclust
@@ -382,6 +387,7 @@ http
 https
 httr
 htm
+hypersphere
 interpolator
 interpretability
 io
@@ -442,6 +448,7 @@ organised
 overfit
 oversample
 oversampled
+oversampling
 parallelization
 pkgdown
 param

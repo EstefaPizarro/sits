@@ -33,3 +33,5 @@ LICENSE
 ^\.positai$
 ^\.claude$
 ^AGENTS.md$
+^GSMOTE$
+^\.ipynb_checkpoints$

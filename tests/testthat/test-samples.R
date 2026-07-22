@@ -23,6 +23,17 @@ test_that("Sample reduce imbalance", {
     expect_true(sd(sum_new_samples[["count"]]) < sd(sum_ori_samples[["count"]]))
 })
 
+test_that("Sample reduce imbalance with GSMOTE", {
+    sum_ori_samples <- summary(samples_modis_ndvi)
+    new_samples <- sits_reduce_imbalance(samples_modis_ndvi,
+        n_samples_over = 200, n_samples_under = 200,
+        method = "gsmote", multicores = 1
+    )
+    sum_new_samples <- summary(new_samples)
+    expect_true(nrow(new_samples) < nrow(samples_modis_ndvi))
+    expect_true(sd(sum_new_samples[["count"]]) < sd(sum_ori_samples[["count"]]))
+})
+
 test_that("Sampling design", {
     # create a random forest model
     rfor_model <- sits_train(samples_modis_ndvi, sits_rfor())

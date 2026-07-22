@@ -5,16 +5,23 @@
 #' @description
 #' Takes a sits tibble with different labels and
 #' returns a new tibble. Deals with class imbalance
-#' using the synthetic minority oversampling technique (SMOTE)
-#' for oversampling. Undersampling is done using the SOM methods available in
-#' the sits package.
+#' using the synthetic minority oversampling technique (SMOTE) or its
+#' geometric variant (G-SMOTE) for oversampling. Undersampling is done
+#' using the SOM methods available in the sits package.
 #'
 #' @param  samples              Sample set to rebalance
 #' @param  n_samples_over       Number of samples to oversample
 #'                              for classes with samples less than this number.
 #' @param  n_samples_under      Number of samples to undersample
 #'                              for classes with samples more than this number.
-#' @param  method               Method for oversampling (default = "smote")
+#' @param  method               Method for oversampling, one of "smote" or
+#'                              "gsmote" (default = "smote").
+#' @param  truncation_factor    G-SMOTE truncation factor, in [-1, 1].
+#'                              Ignored when \code{method = "smote"}
+#'                              (default = 1.0).
+#' @param  deformation_factor   G-SMOTE deformation factor, in [0, 1].
+#'                              Ignored when \code{method = "smote"}
+#'                              (default = 0.0).
 #' @param  multicores           Number of cores to process the data (default 2).
 #'
 #' @return A sits tibble with reduced sample imbalance.
@@ -32,6 +39,13 @@
 #' frequent labels. To generate new samples, \code{sits}
 #' uses the SMOTE method that estimates new samples by considering
 #' the cluster formed by the nearest neighbors of each minority label.
+#'
+#' G-SMOTE (\code{method = "gsmote"}) generalizes the linear
+#' interpolation of SMOTE between a minority point and a neighbor to
+#' sampling inside a hyper-sphere (optionally truncated and deformed into a
+#' hyper-spheroid via \code{truncation_factor} and
+#' \code{deformation_factor}) around each minority point, which produces
+#' more varied synthetic data.
 #'
 #' To perform undersampling, \code{sits_reduce_imbalance}) builds a SOM map
 #' for each majority label based on the required number of samples.
@@ -55,6 +69,16 @@
 #' image time series”. ISPRS Journal of Photogrammetry and Remote Sensing,
 #' vol. 177, pp 75-88, 2021. \doi{10.1016/j.isprsjprs.2021.04.014}.
 #'
+#' The G-SMOTE method is described in:
+#' Douzas, G., Bacao, F., "Geometric SMOTE: Effective oversampling for
+#' imbalanced learning through a geometric extension of SMOTE",
+#' arXiv:1709.07377, 2017. \url{https://arxiv.org/abs/1709.07377}.
+#'
+#' G-SMOTE was later published as:
+#' Douzas, G., Bacao, F., "Geometric SMOTE: a geometrically enhanced
+#' drop-in replacement for SMOTE", Information Sciences, vol. 501,
+#' pp. 118-135, 2019. \doi{10.1016/j.ins.2019.06.007}.
+#'
 #' @examples
 #' if (sits_run_examples()) {
 #'     # print the labels summary for a sample set
@@ -67,12 +91,22 @@
 #'     )
 #'     # print the labels summary for the rebalanced set
 #'     summary(new_samples)
+#'     # reduce the sample imbalance using G-SMOTE
+#'     new_samples_gsmote <- sits_reduce_imbalance(samples_modis_ndvi,
+#'         n_samples_over = 200,
+#'         n_samples_under = 200,
+#'         method = "gsmote",
+#'         multicores = 1
+#'     )
+#'     summary(new_samples_gsmote)
 #' }
 #' @export
 sits_reduce_imbalance <- function(samples,
                                   n_samples_over = 200L,
                                   n_samples_under = 400L,
                                   method = "smote",
+                                  truncation_factor = 1.0,
+                                  deformation_factor = 0.0,
                                   multicores = 2L) {
     # set caller to show in errors
     .check_set_caller("sits_reduce_imbalance")
@@ -80,6 +114,9 @@ sits_reduce_imbalance <- function(samples,
     .check_samples_train(samples)
     .check_int_parameter(n_samples_over)
     .check_int_parameter(n_samples_under)
+    .check_chr_within(method, within = c("smote", "gsmote"))
+    .check_num_parameter(truncation_factor, min = -1.0, max = 1.0)
+    .check_num_parameter(deformation_factor, min = 0.0, max = 1.0)
 
     # check if number of required samples are correctly entered
     .check_that(n_samples_under >= n_samples_over,
@@ -141,7 +178,10 @@ sits_reduce_imbalance <- function(samples,
                     data = dist_band,
                     cls = cls,
                     cls_col = "label",
-                    m = n_samples_over
+                    m = n_samples_over,
+                    method = method,
+                    truncation_factor = truncation_factor,
+                    deformation_factor = deformation_factor
                 )
                 # put the oversampled data into a samples tibble
                 samples_band <- slider::slide_dfr(dist_over, function(row) {

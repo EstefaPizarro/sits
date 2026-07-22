@@ -9,6 +9,8 @@ sits_reduce_imbalance(
   n_samples_over = 200L,
   n_samples_under = 400L,
   method = "smote",
+  truncation_factor = 1,
+  deformation_factor = 0,
   multicores = 2L
 )
 }
@@ -21,7 +23,16 @@ for classes with samples less than this number.}
 \item{n_samples_under}{Number of samples to undersample
 for classes with samples more than this number.}
 
-\item{method}{Method for oversampling (default = "smote")}
+\item{method}{Method for oversampling, one of "smote" or
+"gsmote" (default = "smote").}
+
+\item{truncation_factor}{G-SMOTE truncation factor, in [-1, 1].
+Ignored when \code{method = "smote"}
+(default = 1.0).}
+
+\item{deformation_factor}{G-SMOTE deformation factor, in [0, 1].
+Ignored when \code{method = "smote"}
+(default = 0.0).}
 
 \item{multicores}{Number of cores to process the data (default 2).}
 }
@@ -31,9 +42,9 @@ A sits tibble with reduced sample imbalance.
 \description{
 Takes a sits tibble with different labels and
 returns a new tibble. Deals with class imbalance
-using the synthetic minority oversampling technique (SMOTE)
-for oversampling. Undersampling is done using the SOM methods available in
-the sits package.
+using the synthetic minority oversampling technique (SMOTE) or its
+geometric variant (G-SMOTE) for oversampling. Undersampling is done
+using the SOM methods available in the sits package.
 }
 \note{
 Many training samples for Earth observation data analysis are imbalanced.
@@ -47,6 +58,13 @@ of least frequent labels, and reduces the number of samples of most
 frequent labels. To generate new samples, \code{sits}
 uses the SMOTE method that estimates new samples by considering
 the cluster formed by the nearest neighbors of each minority label.
+
+G-SMOTE (\code{method = "gsmote"}) generalizes the linear
+interpolation of SMOTE between a minority point and a neighbor to
+sampling inside a hyper-sphere (optionally truncated and deformed into a
+hyper-spheroid via \code{truncation_factor} and
+\code{deformation_factor}) around each minority point, which produces
+more varied synthetic data.
 
 To perform undersampling, \code{sits_reduce_imbalance}) builds a SOM map
 for each majority label based on the required number of samples.
@@ -69,6 +87,14 @@ if (sits_run_examples()) {
     )
     # print the labels summary for the rebalanced set
     summary(new_samples)
+    # reduce the sample imbalance using G-SMOTE
+    new_samples_gsmote <- sits_reduce_imbalance(samples_modis_ndvi,
+        n_samples_over = 200,
+        n_samples_under = 200,
+        method = "gsmote",
+        multicores = 1
+    )
+    summary(new_samples_gsmote)
 }
 }
 \references{
@@ -83,6 +109,16 @@ Lorena Santos, Karine Ferreira, Gilberto Camara, Michelle Picoli,
 Rolf Simoes, “Quality control and class noise reduction of satellite
 image time series”. ISPRS Journal of Photogrammetry and Remote Sensing,
 vol. 177, pp 75-88, 2021. \doi{10.1016/j.isprsjprs.2021.04.014}.
+
+The G-SMOTE method is described in:
+Douzas, G., Bacao, F., "Geometric SMOTE: Effective oversampling for
+imbalanced learning through a geometric extension of SMOTE",
+arXiv:1709.07377, 2017. \url{https://arxiv.org/abs/1709.07377}.
+
+G-SMOTE was later published as:
+Douzas, G., Bacao, F., "Geometric SMOTE: a geometrically enhanced
+drop-in replacement for SMOTE", Information Sciences, vol. 501,
+pp. 118-135, 2019. \doi{10.1016/j.ins.2019.06.007}.
 }
 \author{
 Gilberto Camara, \email{gilberto.camara@inpe.br}
